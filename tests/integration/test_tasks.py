@@ -1,35 +1,25 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from app.main import app
-from app.repository.in_memory import repo
-
-
-@pytest.fixture(autouse=True)
-def reset_repo():
-    repo._projects.clear()
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        yield c
-
-
-async def _active_project(client: AsyncClient) -> dict:
-    project = (await client.post("/api/projects", json={"name": "Sprint"})).json()
-    return (await client.post(f"/api/projects/{project['id']}/start")).json()
-
+from app.domain.task import Priority
+from tests.seeds import (
+    active_project,
+    active_project_with_done_task,
+    active_project_with_task,
+    active_project_with_tasks,
+    seed_project,
+    waiting_project,
+)
 
 # --- POST /projects/{id}/tasks ---
 
 
 @pytest.mark.asyncio
 async def test_add_task(client):
-    project = await _active_project(client)
+    project = active_project()
+    seed_project(project)
 
     response = await client.post(
-        f"/api/projects/{project['id']}/tasks",
+        f"/api/projects/{project.id}/tasks",
         json={"title": "Write tests", "priority": "HIGH"},
     )
     data = response.json()
@@ -38,15 +28,16 @@ async def test_add_task(client):
     assert data["title"] == "Write tests"
     assert data["priority"] == "HIGH"
     assert data["status"] == "PENDING"
-    assert data["project_id"] == project["id"]
+    assert data["project_id"] == str(project.id)
 
 
 @pytest.mark.asyncio
 async def test_add_task_to_non_active_project_fails(client):
-    project = (await client.post("/api/projects", json={"name": "Waiting"})).json()
+    project = waiting_project()
+    seed_project(project)
 
     response = await client.post(
-        f"/api/projects/{project['id']}/tasks",
+        f"/api/projects/{project.id}/tasks",
         json={"title": "Task", "priority": "LOW"},
     )
 
@@ -58,10 +49,11 @@ async def test_add_task_to_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_tasks_on_non_active_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
     response = await client.patch(
-        f"/api/projects/{project_id}/tasks/complete",
+        f"/api/projects/{project.id}/tasks/complete",
         json={"task_ids": []},
     )
 
@@ -70,17 +62,12 @@ async def test_complete_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_tasks(client):
-    project = await _active_project(client)
-    task = (
-        await client.post(
-            f"/api/projects/{project['id']}/tasks",
-            json={"title": "Do it", "priority": "MEDIUM"},
-        )
-    ).json()
+    project, task = active_project_with_task("Do it", Priority.MEDIUM)
+    seed_project(project)
 
     response = await client.patch(
-        f"/api/projects/{project['id']}/tasks/complete",
-        json={"task_ids": [task["id"]]},
+        f"/api/projects/{project.id}/tasks/complete",
+        json={"task_ids": [str(task.id)]},
     )
     data = response.json()
 
@@ -94,10 +81,11 @@ async def test_complete_tasks(client):
 
 @pytest.mark.asyncio
 async def test_cancel_tasks_on_non_active_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
     response = await client.patch(
-        f"/api/projects/{project_id}/tasks/cancel",
+        f"/api/projects/{project.id}/tasks/cancel",
         json={"task_ids": []},
     )
 
@@ -106,17 +94,12 @@ async def test_cancel_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_cancel_tasks(client):
-    project = await _active_project(client)
-    task = (
-        await client.post(
-            f"/api/projects/{project['id']}/tasks",
-            json={"title": "Drop it", "priority": "LOW"},
-        )
-    ).json()
+    project, task = active_project_with_task("Drop it", Priority.LOW)
+    seed_project(project)
 
     response = await client.patch(
-        f"/api/projects/{project['id']}/tasks/cancel",
-        json={"task_ids": [task["id"]]},
+        f"/api/projects/{project.id}/tasks/cancel",
+        json={"task_ids": [str(task.id)]},
     )
     data = response.json()
 
@@ -129,23 +112,20 @@ async def test_cancel_tasks(client):
 
 @pytest.mark.asyncio
 async def test_complete_all_tasks_on_non_active_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
-    response = await client.patch(f"/api/projects/{project_id}/tasks/complete-all")
+    response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
 
     assert response.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_complete_all_tasks(client):
-    project = await _active_project(client)
-    for title in ("Task A", "Task B", "Task C"):
-        await client.post(
-            f"/api/projects/{project['id']}/tasks",
-            json={"title": title, "priority": "MEDIUM"},
-        )
+    project = active_project_with_tasks(3)
+    seed_project(project)
 
-    response = await client.patch(f"/api/projects/{project['id']}/tasks/complete-all")
+    response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
     data = response.json()
 
     assert response.status_code == 200
@@ -157,11 +137,12 @@ async def test_complete_all_tasks(client):
 
 @pytest.mark.asyncio
 async def test_remove_tasks_on_non_active_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
     response = await client.request(
         "DELETE",
-        f"/api/projects/{project_id}/tasks",
+        f"/api/projects/{project.id}/tasks",
         json={"task_ids": []},
     )
 
@@ -170,21 +151,31 @@ async def test_remove_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_remove_tasks(client):
-    project = await _active_project(client)
-    task = (
-        await client.post(
-            f"/api/projects/{project['id']}/tasks",
-            json={"title": "Remove me", "priority": "LOW"},
-        )
-    ).json()
+    project, task = active_project_with_task("Remove me", Priority.LOW)
+    seed_project(project)
 
     response = await client.request(
         "DELETE",
-        f"/api/projects/{project['id']}/tasks",
-        json={"task_ids": [task["id"]]},
+        f"/api/projects/{project.id}/tasks",
+        json={"task_ids": [str(task.id)]},
     )
     data = response.json()
 
     assert response.status_code == 200
     assert data["tasks"] == []
 
+
+# --- finish (via seed with done task) ---
+
+
+@pytest.mark.asyncio
+async def test_finish_project_via_seed(client):
+    project, _ = active_project_with_done_task()
+    seed_project(project)
+
+    response = await client.post(f"/api/projects/{project.id}/finish")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["status"] == "DONE"
+    assert data["completed_at"] is not None
