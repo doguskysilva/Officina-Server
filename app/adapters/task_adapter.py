@@ -13,7 +13,7 @@ def _aware(dt: datetime | None) -> datetime | None:
     return dt.replace(tzinfo=UTC) if dt is not None else None
 
 
-def record_to_response(task: Task) -> TaskResponse:
+def to_response(task: Task) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         project_id=task.project_id,

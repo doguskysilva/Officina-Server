@@ -4,10 +4,10 @@ from uuid import uuid4
 import pytest
 
 from app.adapters.project_adapter import (
-    from_create_request,
     from_model,
-    record_to_response,
+    from_request,
     to_model,
+    to_response,
 )
 from app.domain.project import Project, ProjectStatus
 from app.domain.task import Priority, Task, TaskStatus
@@ -61,24 +61,24 @@ def _make_task_model(**kwargs) -> TaskModel:
     return TaskModel(**{**defaults, **kwargs})
 
 
-# --- from_create_request ---
+# --- from_request ---
 
 
-def test_from_create_request_extracts_name():
+def test_from_request_extracts_name():
     body = ProjectCreate(name="Officina App")
 
-    result = from_create_request(body)
+    result = from_request(body)
 
     assert result == "Officina App"
 
 
-# --- record_to_response ---
+# --- to_response ---
 
 
-def test_record_to_response_maps_all_fields():
+def test_to_response_maps_all_fields():
     project = _make_project(id=PROJECT_ID)
 
-    response = record_to_response(project)
+    response = to_response(project)
 
     assert response.id == PROJECT_ID
     assert response.name == "My Project"
@@ -87,8 +87,8 @@ def test_record_to_response_maps_all_fields():
     assert response.completed_at is None
 
 
-def test_record_to_response_no_tasks_computes_defaults():
-    response = record_to_response(_make_project())
+def test_to_response_no_tasks_computes_defaults():
+    response = to_response(_make_project())
 
     assert response.tasks == []
     assert response.pending_count == 0
@@ -96,39 +96,39 @@ def test_record_to_response_no_tasks_computes_defaults():
     assert response.is_active is False
 
 
-def test_record_to_response_in_progress_is_active():
-    response = record_to_response(_make_project(status=ProjectStatus.IN_PROGRESS))
+def test_to_response_in_progress_is_active():
+    response = to_response(_make_project(status=ProjectStatus.IN_PROGRESS))
 
     assert response.is_active is True
 
 
-def test_record_to_response_maps_completed_at():
-    response = record_to_response(_make_project(status=ProjectStatus.DONE, completed_at=COMPLETED))
+def test_to_response_maps_completed_at():
+    response = to_response(_make_project(status=ProjectStatus.DONE, completed_at=COMPLETED))
 
     assert response.status == ProjectStatus.DONE
     assert response.completed_at == COMPLETED
 
 
 @pytest.mark.parametrize("n_pending,n_done", [(2, 1), (1, 0), (3, 3)])
-def test_record_to_response_pending_count(n_pending, n_done):
+def test_to_response_pending_count(n_pending, n_done):
     tasks = [_make_task(status=TaskStatus.PENDING) for _ in range(n_pending)]
     tasks += [_make_task(status=TaskStatus.DONE) for _ in range(n_done)]
-    response = record_to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
+    response = to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
 
     assert response.pending_count == n_pending
 
 
-def test_record_to_response_can_finish_when_all_tasks_done():
+def test_to_response_can_finish_when_all_tasks_done():
     tasks = [_make_task(status=TaskStatus.DONE) for _ in range(3)]
-    response = record_to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
+    response = to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
 
     assert response.can_finish is True
     assert response.pending_count == 0
 
 
-def test_record_to_response_cannot_finish_with_pending_tasks():
+def test_to_response_cannot_finish_with_pending_tasks():
     tasks = [_make_task(status=TaskStatus.DONE), _make_task(status=TaskStatus.PENDING)]
-    response = record_to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
+    response = to_response(_make_project(status=ProjectStatus.IN_PROGRESS, tasks=tasks))
 
     assert response.can_finish is False
 

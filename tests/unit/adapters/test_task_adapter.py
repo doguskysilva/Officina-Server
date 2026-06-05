@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.adapters.task_adapter import from_model, record_to_response, to_model
+from app.adapters.task_adapter import from_model, to_model, to_response
 from app.domain.task import Priority, Task, TaskStatus
 from app.repository.models import TaskModel
 
@@ -35,13 +35,13 @@ def _make_model(**kwargs) -> TaskModel:
     return TaskModel(**{**defaults, **kwargs})
 
 
-# --- record_to_response ---
+# --- to_response ---
 
 
-def test_record_to_response_maps_all_fields():
+def test_to_response_maps_all_fields():
     task = _make_task()
 
-    response = record_to_response(task)
+    response = to_response(task)
 
     assert response.id == TASK_ID
     assert response.project_id == PROJECT_ID
@@ -52,19 +52,19 @@ def test_record_to_response_maps_all_fields():
     assert response.completed_at is None
 
 
-def test_record_to_response_maps_completed_at():
+def test_to_response_maps_completed_at():
     task = _make_task(status=TaskStatus.DONE, completed_at=COMPLETED)
 
-    response = record_to_response(task)
+    response = to_response(task)
 
     assert response.status == TaskStatus.DONE
     assert response.completed_at == COMPLETED
 
 
-def test_record_to_response_maps_cancelled_status():
+def test_to_response_maps_cancelled_status():
     task = _make_task(status=TaskStatus.CANCELLED)
 
-    response = record_to_response(task)
+    response = to_response(task)
 
     assert response.status == TaskStatus.CANCELLED
 
