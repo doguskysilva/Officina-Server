@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -6,8 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 class TaskModel(SQLModel, table=True):
     __tablename__ = "task"
 
-    id: str = Field(primary_key=True)
-    project_id: str = Field(foreign_key="project.id", index=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id", index=True)
     title: str
     status: str
     priority: str
@@ -18,7 +19,7 @@ class TaskModel(SQLModel, table=True):
 class ProjectModel(SQLModel, table=True):
     __tablename__ = "project"
 
-    id: str = Field(primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(index=True)
     status: str
     created_at: datetime
