@@ -2,9 +2,10 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.adapters import project_adapter
+from app.adapters import project_adapter, task_adapter
 from app.ports.project_wire import ProjectCreate, ProjectResponse
-from app.services import project_service
+from app.ports.task_wire import TaskCreate, TaskIdsRequest, TaskResponse
+from app.services import project_service, task_service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -43,3 +44,28 @@ def finish_project(id: UUID) -> ProjectResponse:
 @router.post("/{id}/cancel", response_model=ProjectResponse)
 def cancel_project(id: UUID) -> ProjectResponse:
     return project_adapter.record_to_response(project_service.cancel_project(id))
+
+
+@router.post("/{id}/tasks", response_model=TaskResponse, status_code=201)
+def add_task(id: UUID, body: TaskCreate) -> TaskResponse:
+    return task_adapter.record_to_response(task_service.add_task(id, body.title, body.priority))
+
+
+@router.patch("/{id}/tasks/complete", response_model=ProjectResponse)
+def complete_tasks(id: UUID, body: TaskIdsRequest) -> ProjectResponse:
+    return project_adapter.record_to_response(task_service.complete_tasks(id, set(body.task_ids)))
+
+
+@router.patch("/{id}/tasks/cancel", response_model=ProjectResponse)
+def cancel_tasks(id: UUID, body: TaskIdsRequest) -> ProjectResponse:
+    return project_adapter.record_to_response(task_service.cancel_tasks(id, set(body.task_ids)))
+
+
+@router.patch("/{id}/tasks/complete-all", response_model=ProjectResponse)
+def complete_all_tasks(id: UUID) -> ProjectResponse:
+    return project_adapter.record_to_response(task_service.complete_all_tasks(id))
+
+
+@router.delete("/{id}/tasks", response_model=ProjectResponse)
+def remove_tasks(id: UUID, body: TaskIdsRequest) -> ProjectResponse:
+    return project_adapter.record_to_response(task_service.remove_tasks(id, set(body.task_ids)))
