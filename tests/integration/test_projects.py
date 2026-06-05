@@ -1,19 +1,15 @@
+from uuid import uuid4
+
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from app.main import app
-from app.repository.in_memory import repo
-
-
-@pytest.fixture(autouse=True)
-def reset_repo():
-    repo._projects.clear()
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        yield c
+from tests.seeds import (
+    active_project,
+    active_project_with_done_task,
+    done_project,
+    seed_project,
+    seed_projects,
+    waiting_project,
+)
 
 
 @pytest.mark.asyncio
@@ -41,28 +37,31 @@ async def test_create_project(client):
 
 @pytest.mark.asyncio
 async def test_get_project(client):
-    project_id = (await client.post("/api/projects", json={"name": "My Project"})).json()["id"]
+    project = waiting_project("My Project")
+    seed_project(project)
 
-    response = await client.get(f"/api/projects/{project_id}")
+    response = await client.get(f"/api/projects/{project.id}")
     data = response.json()
 
     assert response.status_code == 200
-    assert data["id"] == project_id
+    assert data["id"] == str(project.id)
+    assert data["name"] == "My Project"
 
 
 @pytest.mark.asyncio
 async def test_get_project_not_found(client):
-    response = await client.get("/api/projects/00000000-0000-0000-0000-000000000000")
+    response = await client.get(f"/api/projects/{uuid4()}")
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_delete_project(client):
-    project_id = (await client.post("/api/projects", json={"name": "To Delete"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
-    delete_response = await client.delete(f"/api/projects/{project_id}")
-    get_response = await client.get(f"/api/projects/{project_id}")
+    delete_response = await client.delete(f"/api/projects/{project.id}")
+    get_response = await client.get(f"/api/projects/{project.id}")
 
     assert delete_response.status_code == 204
     assert get_response.status_code == 404
@@ -70,19 +69,20 @@ async def test_delete_project(client):
 
 @pytest.mark.asyncio
 async def test_delete_in_progress_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Active"})).json()["id"]
-    await client.post(f"/api/projects/{project_id}/start")
+    project = active_project()
+    seed_project(project)
 
-    response = await client.delete(f"/api/projects/{project_id}")
+    response = await client.delete(f"/api/projects/{project.id}")
 
     assert response.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_start_project(client):
-    project_id = (await client.post("/api/projects", json={"name": "Sprint 1"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
-    response = await client.post(f"/api/projects/{project_id}/start")
+    response = await client.post(f"/api/projects/{project.id}/start")
     data = response.json()
 
     assert response.status_code == 200
@@ -92,19 +92,20 @@ async def test_start_project(client):
 
 @pytest.mark.asyncio
 async def test_start_already_started_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Sprint"})).json()["id"]
-    await client.post(f"/api/projects/{project_id}/start")
+    project = active_project()
+    seed_project(project)
 
-    response = await client.post(f"/api/projects/{project_id}/start")
+    response = await client.post(f"/api/projects/{project.id}/start")
 
     assert response.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_cancel_project(client):
-    project_id = (await client.post("/api/projects", json={"name": "Drop this"})).json()["id"]
+    project = waiting_project()
+    seed_project(project)
 
-    response = await client.post(f"/api/projects/{project_id}/cancel")
+    response = await client.post(f"/api/projects/{project.id}/cancel")
     data = response.json()
 
     assert response.status_code == 200
@@ -112,19 +113,51 @@ async def test_cancel_project(client):
 
 
 @pytest.mark.asyncio
-async def test_finish_project_no_tasks_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Empty"})).json()["id"]
-    await client.post(f"/api/projects/{project_id}/start")
+async def test_finish_project_not_in_progress_fails(client):
+    project = waiting_project()
+    seed_project(project)
 
-    response = await client.post(f"/api/projects/{project_id}/finish")
+    response = await client.post(f"/api/projects/{project.id}/finish")
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_finish_project_no_tasks_fails(client):
+    project = active_project()
+    seed_project(project)
+
+    response = await client.post(f"/api/projects/{project.id}/finish")
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_finish_project_succeeds(client):
+    project, _ = active_project_with_done_task()
+    seed_project(project)
+
+    response = await client.post(f"/api/projects/{project.id}/finish")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["status"] == "DONE"
+    assert data["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_done_project_fails(client):
+    project = done_project()
+    seed_project(project)
+
+    response = await client.post(f"/api/projects/{project.id}/cancel")
 
     assert response.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_by_name(client):
-    await client.post("/api/projects", json={"name": "Zebra"})
-    await client.post("/api/projects", json={"name": "Alpha"})
+    seed_projects(waiting_project("Zebra"), waiting_project("Alpha"))
 
     response = await client.get("/api/projects?sort=name_asc")
     data = response.json()
@@ -135,8 +168,7 @@ async def test_list_projects_sorted_by_name(client):
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_newest(client):
-    await client.post("/api/projects", json={"name": "First"})
-    await client.post("/api/projects", json={"name": "Second"})
+    seed_projects(waiting_project("First"), waiting_project("Second"))
 
     response = await client.get("/api/projects?sort=newest")
     data = response.json()
@@ -147,60 +179,10 @@ async def test_list_projects_sorted_newest(client):
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_oldest(client):
-    await client.post("/api/projects", json={"name": "First"})
-    await client.post("/api/projects", json={"name": "Second"})
+    seed_projects(waiting_project("First"), waiting_project("Second"))
 
     response = await client.get("/api/projects?sort=oldest")
     data = response.json()
 
     assert response.status_code == 200
     assert data[0]["name"] == "First"
-
-
-@pytest.mark.asyncio
-async def test_finish_project_not_in_progress_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
-
-    response = await client.post(f"/api/projects/{project_id}/finish")
-
-    assert response.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_finish_project_succeeds(client):
-    project_id = (await client.post("/api/projects", json={"name": "Sprint"})).json()["id"]
-    await client.post(f"/api/projects/{project_id}/start")
-    task = (await client.post(
-        f"/api/projects/{project_id}/tasks",
-        json={"title": "Last task", "priority": "HIGH"},
-    )).json()
-    await client.patch(
-        f"/api/projects/{project_id}/tasks/complete",
-        json={"task_ids": [task["id"]]},
-    )
-
-    response = await client.post(f"/api/projects/{project_id}/finish")
-    data = response.json()
-
-    assert response.status_code == 200
-    assert data["status"] == "DONE"
-    assert data["completed_at"] is not None
-
-
-@pytest.mark.asyncio
-async def test_cancel_done_project_fails(client):
-    project_id = (await client.post("/api/projects", json={"name": "Sprint"})).json()["id"]
-    await client.post(f"/api/projects/{project_id}/start")
-    task = (await client.post(
-        f"/api/projects/{project_id}/tasks",
-        json={"title": "Last task", "priority": "HIGH"},
-    )).json()
-    await client.patch(
-        f"/api/projects/{project_id}/tasks/complete",
-        json={"task_ids": [task["id"]]},
-    )
-    await client.post(f"/api/projects/{project_id}/finish")
-
-    response = await client.post(f"/api/projects/{project_id}/cancel")
-
-    assert response.status_code == 409

@@ -1,0 +1,37 @@
+from datetime import UTC, datetime
+from uuid import UUID
+
+from app.domain.task import Priority, Task, TaskStatus
+from app.repository.models import TaskModel
+
+
+def _naive(dt: datetime | None) -> datetime | None:
+    return dt.replace(tzinfo=None) if dt is not None else None
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    return dt.replace(tzinfo=UTC) if dt is not None else None
+
+
+def to_model(task: Task) -> TaskModel:
+    return TaskModel(
+        id=str(task.id),
+        project_id=str(task.project_id),
+        title=task.title,
+        status=task.status.value,
+        priority=task.priority.value,
+        created_at=_naive(task.created_at),
+        completed_at=_naive(task.completed_at),
+    )
+
+
+def from_model(model: TaskModel) -> Task:
+    return Task(
+        id=UUID(model.id),
+        project_id=UUID(model.project_id),
+        title=model.title,
+        status=TaskStatus(model.status),
+        priority=Priority(model.priority),
+        created_at=_aware(model.created_at),
+        completed_at=_aware(model.completed_at),
+    )

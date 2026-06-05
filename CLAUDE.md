@@ -37,7 +37,7 @@ ports   ←  adapters  ←  routers
 
 **`app/adapters/`** — Translate between domain entities and wire schemas. `project_adapter.record_to_response()` explicitly maps domain properties onto the flat response schema. `project_adapter.from_create_request()` extracts the name from the create request.
 
-**`app/repository/`** — Single in-memory store (`repo` singleton). Stores domain entities directly. Import it with an alias for clarity: `from app.repository.in_memory import repo as project_repository`.
+**`app/repository/`** — SQLite persistence via SQLModel (`sqlite.py`). `base.py` defines the `ProjectRepository` Protocol. `connection.py` holds the active repository instance (`get_repository()` / `set_repository()`); must be initialised before use (done in `main.py` lifespan and in `tests/conftest.py`). `models.py` defines `ProjectModel`/`TaskModel` SQLModel table classes — never imported outside the repository layer.
 
 **`app/services/`** — Orchestration only. Fetch the entity, check domain properties (`project.can_start`, `project.can_finish`, etc.), raise `HTTPException` on violations, call the domain method, save. Services have no business logic of their own.
 
@@ -51,6 +51,6 @@ All project endpoints: `GET/POST /api/projects`, `GET/DELETE /api/projects/{id}`
 
 ### Tests
 
-Integration tests use `httpx.AsyncClient` with `ASGITransport` — no real server needed. Each test file has an `autouse` fixture that clears `repo._projects` between tests. The `_active_project` helper in `test_tasks.py` creates and starts a project in one step (task operations require `IN_PROGRESS`).
+Integration tests use `httpx.AsyncClient` with `ASGITransport` — no real server needed. `tests/conftest.py` spins up a fresh `sqlite:///:memory:` database with `StaticPool` before each test and tears it down after, providing full isolation. Tests can seed state directly via `get_repository()` without going through HTTP. The `_active_project` helper in `test_tasks.py` creates and starts a project in one step (task operations require `IN_PROGRESS`).
 
 Unit tests are split: `tests/unit/domain/` for domain entity behaviour, `tests/unit/adapters/` for adapter mapping.
