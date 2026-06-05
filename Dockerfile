@@ -22,6 +22,8 @@ WORKDIR /app
 COPY --from=builder /app/.venv .venv
 COPY --from=builder /app/app app
 
+RUN mkdir -p /app/data && chown appuser:appuser /app/data
+
 ENV PATH="/app/.venv/bin:$PATH"
 
 USER appuser
