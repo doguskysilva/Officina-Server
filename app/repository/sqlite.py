@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlmodel import Session, delete, select
 
 from app.adapters import project_model_adapter, task_model_adapter
@@ -12,6 +12,14 @@ from app.repository.models import ProjectModel, TaskModel
 class SQLiteProjectRepository:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
+
+    def ping(self) -> bool:
+        try:
+            with self._engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
 
     def list_projects(self, sort: str = "name_asc") -> list[Project]:
         with Session(self._engine) as session:

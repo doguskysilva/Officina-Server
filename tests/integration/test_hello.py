@@ -11,5 +11,8 @@ async def test_hello_endpoint(client):
 @pytest.mark.asyncio
 async def test_health_endpoint(client):
     response = await client.get("/health")
+    data = response.json()
+
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert data["status"] == "ok"
+    assert data["components"]["database"] == "ok"
