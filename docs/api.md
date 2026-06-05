@@ -1,7 +1,7 @@
 # Officina API — Especificação REST
 
 Stack: **FastAPI · Python 3.14 · uvicorn**  
-Base URL: `http://localhost:8000/api/v1`
+Base URL: `http://localhost:8000/api`
 
 ---
 
