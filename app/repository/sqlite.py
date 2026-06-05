@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Engine, text
-from sqlmodel import Session, delete, select
+from sqlalchemy import Engine
+from sqlmodel import Session, delete, select, text
 
 from app.adapters import project_model_adapter, task_model_adapter
 from app.domain.project import Project, ProjectStatus
@@ -33,7 +33,7 @@ class SQLiteProjectRepository:
 
     def get_project(self, project_id: UUID) -> Project | None:
         with Session(self._engine) as session:
-            row = session.get(ProjectModel, str(project_id))
+            row = session.get(ProjectModel, project_id)
             if row is None:
                 return None
             return project_model_adapter.from_model(row)
@@ -53,7 +53,7 @@ class SQLiteProjectRepository:
     def save_project(self, project: Project) -> Project:
         with Session(self._engine) as session:
             session.merge(project_model_adapter.to_model(project))
-            session.exec(delete(TaskModel).where(TaskModel.project_id == str(project.id)))
+            session.exec(delete(TaskModel).where(TaskModel.project_id == project.id))
             for task in project.tasks:
                 session.add(task_model_adapter.to_model(task))
             session.commit()
@@ -61,8 +61,8 @@ class SQLiteProjectRepository:
 
     def delete_project(self, project_id: UUID) -> None:
         with Session(self._engine) as session:
-            session.exec(delete(TaskModel).where(TaskModel.project_id == str(project_id)))
-            row = session.get(ProjectModel, str(project_id))
+            session.exec(delete(TaskModel).where(TaskModel.project_id == project_id))
+            row = session.get(ProjectModel, project_id)
             if row:
                 session.delete(row)
             session.commit()

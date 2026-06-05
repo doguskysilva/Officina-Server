@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from app.adapters.project_model_adapter import from_model, to_model
 from app.domain.project import Project, ProjectStatus
@@ -24,7 +24,7 @@ def _make_project(**kwargs) -> Project:
 
 def _make_model(tasks: list[TaskModel] | None = None, **kwargs) -> ProjectModel:
     defaults = dict(
-        id=str(PROJECT_ID),
+        id=PROJECT_ID,
         name="App Mobile",
         status="WAITING",
         created_at=NOW.replace(tzinfo=None),
@@ -36,8 +36,8 @@ def _make_model(tasks: list[TaskModel] | None = None, **kwargs) -> ProjectModel:
 
 def _make_task_model(**kwargs) -> TaskModel:
     defaults = dict(
-        id=str(TASK_ID),
-        project_id=str(PROJECT_ID),
+        id=TASK_ID,
+        project_id=PROJECT_ID,
         title="Task",
         status="PENDING",
         priority="MEDIUM",
@@ -49,11 +49,10 @@ def _make_task_model(**kwargs) -> TaskModel:
 # --- to_model ---
 
 
-def test_to_model_converts_id_to_str():
+def test_to_model_maps_id():
     model = to_model(_make_project())
 
-    assert model.id == str(PROJECT_ID)
-    assert isinstance(model.id, str)
+    assert model.id == PROJECT_ID
 
 
 def test_to_model_maps_name_and_status():
@@ -103,11 +102,10 @@ def test_to_model_does_not_include_tasks():
 # --- from_model ---
 
 
-def test_from_model_converts_id_to_uuid():
+def test_from_model_maps_id():
     project = from_model(_make_model())
 
     assert project.id == PROJECT_ID
-    assert isinstance(project.id, UUID)
 
 
 def test_from_model_maps_name_and_status():

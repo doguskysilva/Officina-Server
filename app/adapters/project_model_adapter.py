@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from uuid import UUID
 
 from app.adapters import task_model_adapter
 from app.domain.project import Project, ProjectStatus
@@ -16,7 +15,7 @@ def _aware(dt: datetime | None) -> datetime | None:
 
 def to_model(project: Project) -> ProjectModel:
     return ProjectModel(
-        id=str(project.id),
+        id=project.id,
         name=project.name,
         status=project.status.value,
         created_at=_naive(project.created_at),
@@ -26,7 +25,7 @@ def to_model(project: Project) -> ProjectModel:
 
 def from_model(model: ProjectModel) -> Project:
     return Project(
-        id=UUID(model.id),
+        id=model.id,
         name=model.name,
         status=ProjectStatus(model.status),
         created_at=_aware(model.created_at),

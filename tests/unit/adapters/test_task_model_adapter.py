@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from app.adapters.task_model_adapter import from_model, to_model
 from app.domain.task import Priority, Task, TaskStatus
@@ -25,8 +25,8 @@ def _make_task(**kwargs) -> Task:
 
 def _make_model(**kwargs) -> TaskModel:
     defaults = dict(
-        id=str(TASK_ID),
-        project_id=str(PROJECT_ID),
+        id=TASK_ID,
+        project_id=PROJECT_ID,
         title="Write tests",
         status="PENDING",
         priority="HIGH",
@@ -38,11 +38,11 @@ def _make_model(**kwargs) -> TaskModel:
 # --- to_model ---
 
 
-def test_to_model_converts_ids_to_str():
+def test_to_model_maps_ids():
     model = to_model(_make_task())
 
-    assert model.id == str(TASK_ID)
-    assert model.project_id == str(PROJECT_ID)
+    assert model.id == TASK_ID
+    assert model.project_id == PROJECT_ID
 
 
 def test_to_model_maps_title_and_enums():
@@ -75,12 +75,11 @@ def test_to_model_strips_timezone_from_completed_at():
 # --- from_model ---
 
 
-def test_from_model_converts_ids_to_uuid():
+def test_from_model_maps_ids():
     task = from_model(_make_model())
 
     assert task.id == TASK_ID
     assert task.project_id == PROJECT_ID
-    assert isinstance(task.id, UUID)
 
 
 def test_from_model_maps_title_and_enums():

@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from uuid import UUID
 
 from app.domain.task import Priority, Task, TaskStatus
 from app.repository.models import TaskModel
@@ -15,8 +14,8 @@ def _aware(dt: datetime | None) -> datetime | None:
 
 def to_model(task: Task) -> TaskModel:
     return TaskModel(
-        id=str(task.id),
-        project_id=str(task.project_id),
+        id=task.id,
+        project_id=task.project_id,
         title=task.title,
         status=task.status.value,
         priority=task.priority.value,
@@ -27,8 +26,8 @@ def to_model(task: Task) -> TaskModel:
 
 def from_model(model: TaskModel) -> Task:
     return Task(
-        id=UUID(model.id),
-        project_id=UUID(model.project_id),
+        id=model.id,
+        project_id=model.project_id,
         title=model.title,
         status=TaskStatus(model.status),
         priority=Priority(model.priority),
