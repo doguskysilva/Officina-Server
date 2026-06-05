@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -25,3 +25,10 @@ class Task:
     priority: Priority
     created_at: datetime
     completed_at: datetime | None = None
+
+    def complete(self) -> None:
+        self.status = TaskStatus.DONE
+        self.completed_at = datetime.now(UTC)
+
+    def cancel(self) -> None:
+        self.status = TaskStatus.CANCELLED

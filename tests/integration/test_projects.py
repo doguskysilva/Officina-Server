@@ -131,3 +131,76 @@ async def test_list_projects_sorted_by_name(client):
 
     assert response.status_code == 200
     assert [p["name"] for p in data] == ["Alpha", "Zebra"]
+
+
+@pytest.mark.asyncio
+async def test_list_projects_sorted_newest(client):
+    await client.post("/api/projects", json={"name": "First"})
+    await client.post("/api/projects", json={"name": "Second"})
+
+    response = await client.get("/api/projects?sort=newest")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data[0]["name"] == "Second"
+
+
+@pytest.mark.asyncio
+async def test_list_projects_sorted_oldest(client):
+    await client.post("/api/projects", json={"name": "First"})
+    await client.post("/api/projects", json={"name": "Second"})
+
+    response = await client.get("/api/projects?sort=oldest")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data[0]["name"] == "First"
+
+
+@pytest.mark.asyncio
+async def test_finish_project_not_in_progress_fails(client):
+    project_id = (await client.post("/api/projects", json={"name": "Waiting"})).json()["id"]
+
+    response = await client.post(f"/api/projects/{project_id}/finish")
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_finish_project_succeeds(client):
+    project_id = (await client.post("/api/projects", json={"name": "Sprint"})).json()["id"]
+    await client.post(f"/api/projects/{project_id}/start")
+    task = (await client.post(
+        f"/api/projects/{project_id}/tasks",
+        json={"title": "Last task", "priority": "HIGH"},
+    )).json()
+    await client.patch(
+        f"/api/projects/{project_id}/tasks/complete",
+        json={"task_ids": [task["id"]]},
+    )
+
+    response = await client.post(f"/api/projects/{project_id}/finish")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["status"] == "DONE"
+    assert data["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_done_project_fails(client):
+    project_id = (await client.post("/api/projects", json={"name": "Sprint"})).json()["id"]
+    await client.post(f"/api/projects/{project_id}/start")
+    task = (await client.post(
+        f"/api/projects/{project_id}/tasks",
+        json={"title": "Last task", "priority": "HIGH"},
+    )).json()
+    await client.patch(
+        f"/api/projects/{project_id}/tasks/complete",
+        json={"task_ids": [task["id"]]},
+    )
+    await client.post(f"/api/projects/{project_id}/finish")
+
+    response = await client.post(f"/api/projects/{project_id}/cancel")
+
+    assert response.status_code == 409
