@@ -1,16 +1,7 @@
-from datetime import UTC, datetime
-
+from app.adapters.datetime_adapter import to_aware, to_naive
 from app.domain.task import Priority, Task, TaskStatus
 from app.ports.task_wire import TaskResponse
 from app.repository.models import TaskModel
-
-
-def _naive(dt: datetime | None) -> datetime | None:
-    return dt.replace(tzinfo=None) if dt is not None else None
-
-
-def _aware(dt: datetime | None) -> datetime | None:
-    return dt.replace(tzinfo=UTC) if dt is not None else None
 
 
 def to_response(task: Task) -> TaskResponse:
@@ -32,8 +23,8 @@ def to_model(task: Task) -> TaskModel:
         title=task.title,
         status=task.status.value,
         priority=task.priority.value,
-        created_at=_naive(task.created_at),
-        completed_at=_naive(task.completed_at),
+        created_at=to_naive(task.created_at),
+        completed_at=to_naive(task.completed_at),
     )
 
 
@@ -44,6 +35,6 @@ def from_model(model: TaskModel) -> Task:
         title=model.title,
         status=TaskStatus(model.status),
         priority=Priority(model.priority),
-        created_at=_aware(model.created_at),
-        completed_at=_aware(model.completed_at),
+        created_at=to_aware(model.created_at),
+        completed_at=to_aware(model.completed_at),
     )
