@@ -2,14 +2,8 @@ from uuid import uuid4
 
 import pytest
 
-from tests.seeds import (
-    active_project,
-    active_project_with_done_task,
-    done_project,
-    seed_project,
-    seed_projects,
-    waiting_project,
-)
+from tests.factories import ProjectFactory, TaskFactory
+from tests.seeds import seed_project, seed_projects
 
 
 @pytest.mark.asyncio
@@ -37,7 +31,7 @@ async def test_create_project(client):
 
 @pytest.mark.asyncio
 async def test_get_project(client):
-    project = waiting_project("My Project")
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.get(f"/api/projects/{project.id}")
@@ -45,7 +39,7 @@ async def test_get_project(client):
 
     assert response.status_code == 200
     assert data["id"] == str(project.id)
-    assert data["name"] == "My Project"
+    assert data["name"] == project.name
 
 
 @pytest.mark.asyncio
@@ -57,7 +51,7 @@ async def test_get_project_not_found(client):
 
 @pytest.mark.asyncio
 async def test_delete_project(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     delete_response = await client.delete(f"/api/projects/{project.id}")
@@ -69,7 +63,7 @@ async def test_delete_project(client):
 
 @pytest.mark.asyncio
 async def test_delete_in_progress_project_fails(client):
-    project = active_project()
+    project = ProjectFactory(in_progress=True)
     seed_project(project)
 
     response = await client.delete(f"/api/projects/{project.id}")
@@ -79,7 +73,7 @@ async def test_delete_in_progress_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_start_project(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/start")
@@ -92,7 +86,7 @@ async def test_start_project(client):
 
 @pytest.mark.asyncio
 async def test_start_already_started_fails(client):
-    project = active_project()
+    project = ProjectFactory(in_progress=True)
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/start")
@@ -102,7 +96,7 @@ async def test_start_already_started_fails(client):
 
 @pytest.mark.asyncio
 async def test_cancel_project(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/cancel")
@@ -114,7 +108,7 @@ async def test_cancel_project(client):
 
 @pytest.mark.asyncio
 async def test_finish_project_not_in_progress_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/finish")
@@ -124,7 +118,7 @@ async def test_finish_project_not_in_progress_fails(client):
 
 @pytest.mark.asyncio
 async def test_finish_project_no_tasks_fails(client):
-    project = active_project()
+    project = ProjectFactory(in_progress=True)
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/finish")
@@ -134,7 +128,9 @@ async def test_finish_project_no_tasks_fails(client):
 
 @pytest.mark.asyncio
 async def test_finish_project_succeeds(client):
-    project, _ = active_project_with_done_task()
+    project = ProjectFactory(in_progress=True)
+    task = TaskFactory(done=True, project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/finish")
@@ -147,7 +143,9 @@ async def test_finish_project_succeeds(client):
 
 @pytest.mark.asyncio
 async def test_cancel_done_project_fails(client):
-    project = done_project()
+    project = ProjectFactory(done=True)
+    task = TaskFactory(done=True, project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/cancel")
@@ -157,7 +155,7 @@ async def test_cancel_done_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_by_name(client):
-    seed_projects(waiting_project("Zebra"), waiting_project("Alpha"))
+    seed_projects(ProjectFactory(name="Zebra"), ProjectFactory(name="Alpha"))
 
     response = await client.get("/api/projects?sort=name_asc")
     data = response.json()
@@ -168,7 +166,7 @@ async def test_list_projects_sorted_by_name(client):
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_newest(client):
-    seed_projects(waiting_project("First"), waiting_project("Second"))
+    seed_projects(ProjectFactory(name="First"), ProjectFactory(name="Second"))
 
     response = await client.get("/api/projects?sort=newest")
     data = response.json()
@@ -179,7 +177,7 @@ async def test_list_projects_sorted_newest(client):
 
 @pytest.mark.asyncio
 async def test_list_projects_sorted_oldest(client):
-    seed_projects(waiting_project("First"), waiting_project("Second"))
+    seed_projects(ProjectFactory(name="First"), ProjectFactory(name="Second"))
 
     response = await client.get("/api/projects?sort=oldest")
     data = response.json()

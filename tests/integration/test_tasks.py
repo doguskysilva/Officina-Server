@@ -1,21 +1,15 @@
 import pytest
 
-from app.domain.task import Priority
-from tests.seeds import (
-    active_project,
-    active_project_with_done_task,
-    active_project_with_task,
-    active_project_with_tasks,
-    seed_project,
-    waiting_project,
-)
+from tests.factories import ProjectFactory, TaskFactory
+from tests.seeds import seed_project
+
 
 # --- POST /projects/{id}/tasks ---
 
 
 @pytest.mark.asyncio
 async def test_add_task(client):
-    project = active_project()
+    project = ProjectFactory(in_progress=True)
     seed_project(project)
 
     response = await client.post(
@@ -33,7 +27,7 @@ async def test_add_task(client):
 
 @pytest.mark.asyncio
 async def test_add_task_to_non_active_project_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.post(
@@ -49,7 +43,7 @@ async def test_add_task_to_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_tasks_on_non_active_project_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.patch(
@@ -62,7 +56,9 @@ async def test_complete_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_tasks(client):
-    project, task = active_project_with_task("Do it", Priority.MEDIUM)
+    project = ProjectFactory(in_progress=True)
+    task = TaskFactory(project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.patch(
@@ -81,7 +77,7 @@ async def test_complete_tasks(client):
 
 @pytest.mark.asyncio
 async def test_cancel_tasks_on_non_active_project_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.patch(
@@ -94,7 +90,9 @@ async def test_cancel_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_cancel_tasks(client):
-    project, task = active_project_with_task("Drop it", Priority.LOW)
+    project = ProjectFactory(in_progress=True)
+    task = TaskFactory(project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.patch(
@@ -112,7 +110,7 @@ async def test_cancel_tasks(client):
 
 @pytest.mark.asyncio
 async def test_complete_all_tasks_on_non_active_project_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
@@ -122,7 +120,8 @@ async def test_complete_all_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_all_tasks(client):
-    project = active_project_with_tasks(3)
+    project = ProjectFactory(in_progress=True)
+    project.tasks = TaskFactory.create_batch(3, project_id=project.id)
     seed_project(project)
 
     response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
@@ -137,7 +136,7 @@ async def test_complete_all_tasks(client):
 
 @pytest.mark.asyncio
 async def test_remove_tasks_on_non_active_project_fails(client):
-    project = waiting_project()
+    project = ProjectFactory()
     seed_project(project)
 
     response = await client.request(
@@ -151,7 +150,9 @@ async def test_remove_tasks_on_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_remove_tasks(client):
-    project, task = active_project_with_task("Remove me", Priority.LOW)
+    project = ProjectFactory(in_progress=True)
+    task = TaskFactory(project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.request(
@@ -165,12 +166,14 @@ async def test_remove_tasks(client):
     assert data["tasks"] == []
 
 
-# --- finish (via seed with done task) ---
+# --- finish (via project with done task) ---
 
 
 @pytest.mark.asyncio
 async def test_finish_project_via_seed(client):
-    project, _ = active_project_with_done_task()
+    project = ProjectFactory(in_progress=True)
+    task = TaskFactory(done=True, project_id=project.id)
+    project.tasks = [task]
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/finish")

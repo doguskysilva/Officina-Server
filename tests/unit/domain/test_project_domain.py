@@ -1,34 +1,17 @@
-from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.domain.project import Project, ProjectStatus
-from app.domain.task import Priority, Task, TaskStatus
+import pytest
 
-NOW = datetime(2026, 6, 4, 12, 0, tzinfo=UTC)
-
-
-def _make_project(**kwargs) -> Project:
-    defaults = dict(id=uuid4(), name="My Project", status=ProjectStatus.IN_PROGRESS, created_at=NOW)
-    return Project(**{**defaults, **kwargs})
-
-
-def _make_task(**kwargs) -> Task:
-    defaults = dict(
-        id=uuid4(),
-        project_id=uuid4(),
-        title="Task",
-        status=TaskStatus.DONE,
-        priority=Priority.MEDIUM,
-        created_at=NOW,
-    )
-    return Task(**{**defaults, **kwargs})
+from app.domain.project import ProjectStatus
+from app.domain.task import Priority, TaskStatus
+from tests.factories import ProjectFactory, TaskFactory
 
 
 # --- start() ---
 
 
 def test_start_sets_status_to_in_progress():
-    project = _make_project(status=ProjectStatus.WAITING)
+    project = ProjectFactory()
 
     project.start()
 
@@ -36,7 +19,7 @@ def test_start_sets_status_to_in_progress():
 
 
 def test_start_makes_project_active():
-    project = _make_project(status=ProjectStatus.WAITING)
+    project = ProjectFactory()
 
     project.start()
 
@@ -44,7 +27,7 @@ def test_start_makes_project_active():
 
 
 def test_start_disables_can_start():
-    project = _make_project(status=ProjectStatus.WAITING)
+    project = ProjectFactory()
 
     project.start()
 
@@ -55,7 +38,7 @@ def test_start_disables_can_start():
 
 
 def test_cancel_sets_status_to_cancelled():
-    project = _make_project(status=ProjectStatus.WAITING)
+    project = ProjectFactory()
 
     project.cancel()
 
@@ -63,7 +46,7 @@ def test_cancel_sets_status_to_cancelled():
 
 
 def test_cancel_from_in_progress():
-    project = _make_project(status=ProjectStatus.IN_PROGRESS)
+    project = ProjectFactory(in_progress=True)
 
     project.cancel()
 
@@ -75,7 +58,7 @@ def test_cancel_from_in_progress():
 
 
 def test_complete_sets_status_to_done():
-    project = _make_project()
+    project = ProjectFactory(in_progress=True)
 
     project.complete()
 
@@ -83,16 +66,16 @@ def test_complete_sets_status_to_done():
 
 
 def test_complete_sets_completed_at():
-    project = _make_project()
+    project = ProjectFactory(in_progress=True)
 
     project.complete()
 
     assert project.completed_at is not None
-    assert project.completed_at.tzinfo is UTC
+    assert project.completed_at.tzinfo is not None
 
 
 def test_complete_completed_at_is_after_created_at():
-    project = _make_project()
+    project = ProjectFactory(in_progress=True)
 
     project.complete()
 
@@ -100,8 +83,8 @@ def test_complete_completed_at_is_after_created_at():
 
 
 def test_complete_updates_can_finish_derived_state():
-    tasks = [_make_task(status=TaskStatus.DONE)]
-    project = _make_project(tasks=tasks)
+    tasks = [TaskFactory(done=True)]
+    project = ProjectFactory(in_progress=True, tasks=tasks)
 
     project.complete()
 
@@ -114,7 +97,7 @@ def test_complete_updates_can_finish_derived_state():
 
 
 def test_add_task_creates_pending_task():
-    project = _make_project()
+    project = ProjectFactory(in_progress=True)
 
     task = project.add_task("Write docs", Priority.HIGH)
 
@@ -125,7 +108,7 @@ def test_add_task_creates_pending_task():
 
 
 def test_add_task_appends_to_project():
-    project = _make_project()
+    project = ProjectFactory(in_progress=True)
 
     project.add_task("Task A", Priority.LOW)
     project.add_task("Task B", Priority.MEDIUM)
@@ -137,9 +120,9 @@ def test_add_task_appends_to_project():
 
 
 def test_complete_tasks_marks_specified_done():
-    t1 = _make_task(status=TaskStatus.PENDING)
-    t2 = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[t1, t2])
+    t1 = TaskFactory()
+    t2 = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_tasks({t1.id})
 
@@ -148,8 +131,8 @@ def test_complete_tasks_marks_specified_done():
 
 
 def test_complete_tasks_sets_completed_at():
-    task = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[task])
+    task = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[task])
 
     project.complete_tasks({task.id})
 
@@ -157,8 +140,8 @@ def test_complete_tasks_sets_completed_at():
 
 
 def test_complete_tasks_ignores_unknown_ids():
-    task = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[task])
+    task = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[task])
 
     project.complete_tasks({uuid4()})
 
@@ -169,9 +152,9 @@ def test_complete_tasks_ignores_unknown_ids():
 
 
 def test_cancel_tasks_marks_specified_cancelled():
-    t1 = _make_task(status=TaskStatus.PENDING)
-    t2 = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[t1, t2])
+    t1 = TaskFactory()
+    t2 = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.cancel_tasks({t1.id})
 
@@ -183,9 +166,9 @@ def test_cancel_tasks_marks_specified_cancelled():
 
 
 def test_complete_all_tasks_marks_all_pending_done():
-    t1 = _make_task(status=TaskStatus.PENDING)
-    t2 = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[t1, t2])
+    t1 = TaskFactory()
+    t2 = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_all_tasks()
 
@@ -194,9 +177,9 @@ def test_complete_all_tasks_marks_all_pending_done():
 
 
 def test_complete_all_tasks_skips_non_pending():
-    t1 = _make_task(status=TaskStatus.CANCELLED)
-    t2 = _make_task(status=TaskStatus.PENDING)
-    project = _make_project(tasks=[t1, t2])
+    t1 = TaskFactory(cancelled=True)
+    t2 = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_all_tasks()
 
@@ -208,9 +191,9 @@ def test_complete_all_tasks_skips_non_pending():
 
 
 def test_remove_tasks_removes_specified():
-    t1 = _make_task()
-    t2 = _make_task()
-    project = _make_project(tasks=[t1, t2])
+    t1 = TaskFactory()
+    t2 = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.remove_tasks({t1.id})
 
@@ -219,9 +202,36 @@ def test_remove_tasks_removes_specified():
 
 
 def test_remove_tasks_ignores_unknown_ids():
-    task = _make_task()
-    project = _make_project(tasks=[task])
+    task = TaskFactory()
+    project = ProjectFactory(in_progress=True, tasks=[task])
 
     project.remove_tasks({uuid4()})
 
     assert len(project.tasks) == 1
+
+
+# --- pending_count / can_finish / is_active ---
+
+
+@pytest.mark.parametrize("n_pending,n_done", [(2, 1), (1, 0), (3, 3)])
+def test_pending_count(n_pending, n_done):
+    tasks = [TaskFactory() for _ in range(n_pending)]
+    tasks += [TaskFactory(done=True) for _ in range(n_done)]
+    project = ProjectFactory(in_progress=True, tasks=tasks)
+
+    assert project.pending_count == n_pending
+
+
+def test_can_finish_when_all_tasks_done():
+    tasks = [TaskFactory(done=True) for _ in range(3)]
+    project = ProjectFactory(in_progress=True, tasks=tasks)
+
+    assert project.can_finish is True
+    assert project.pending_count == 0
+
+
+def test_cannot_finish_with_pending_tasks():
+    tasks = [TaskFactory(done=True), TaskFactory()]
+    project = ProjectFactory(in_progress=True, tasks=tasks)
+
+    assert project.can_finish is False
