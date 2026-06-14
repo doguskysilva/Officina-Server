@@ -1,54 +1,51 @@
 from uuid import UUID
 
-from fastapi import HTTPException
-
 from app.domain.project import Project
-from app.repository.connection import get_repository
+from app.repository.base import ProjectRepository
+from app.services.exceptions import ProjectConflict, ProjectNotFound
 
 
-def list_projects(sort: str = "name_asc") -> list[Project]:
-    return get_repository().list_projects(sort)
+class ProjectService:
+    def __init__(self, repository: ProjectRepository) -> None:
+        self._repository = repository
 
+    def list_projects(self, sort: str = "name_asc") -> list[Project]:
+        return self._repository.list_projects(sort)
 
-def get_project(project_id: UUID) -> Project:
-    project = get_repository().get_project(project_id)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    def get_project(self, project_id: UUID) -> Project:
+        project = self._repository.get_project(project_id)
+        if project is None:
+            raise ProjectNotFound()
+        return project
 
+    def create_project(self, name: str) -> Project:
+        return self._repository.create_project(name)
 
-def create_project(name: str) -> Project:
-    return get_repository().create_project(name)
+    def delete_project(self, project_id: UUID) -> None:
+        project = self.get_project(project_id)
+        if not project.can_be_deleted:
+            raise ProjectConflict("Cannot delete an IN_PROGRESS project")
+        self._repository.delete_project(project_id)
 
+    def start_project(self, project_id: UUID) -> Project:
+        project = self.get_project(project_id)
+        if not project.can_start:
+            raise ProjectConflict("Project must be WAITING to start")
+        project.start()
+        return self._repository.save_project(project)
 
-def delete_project(project_id: UUID) -> None:
-    project = get_project(project_id)
-    if not project.can_be_deleted:
-        raise HTTPException(status_code=409, detail="Cannot delete an IN_PROGRESS project")
-    get_repository().delete_project(project_id)
+    def finish_project(self, project_id: UUID) -> Project:
+        project = self.get_project(project_id)
+        if not project.is_active:
+            raise ProjectConflict("Project must be IN_PROGRESS to finish")
+        if not project.can_finish:
+            raise ProjectConflict("Project has pending tasks or no tasks")
+        project.complete()
+        return self._repository.save_project(project)
 
-
-def start_project(project_id: UUID) -> Project:
-    project = get_project(project_id)
-    if not project.can_start:
-        raise HTTPException(status_code=409, detail="Project must be WAITING to start")
-    project.start()
-    return get_repository().save_project(project)
-
-
-def finish_project(project_id: UUID) -> Project:
-    project = get_project(project_id)
-    if not project.is_active:
-        raise HTTPException(status_code=409, detail="Project must be IN_PROGRESS to finish")
-    if not project.can_finish:
-        raise HTTPException(status_code=409, detail="Project has pending tasks or no tasks")
-    project.complete()
-    return get_repository().save_project(project)
-
-
-def cancel_project(project_id: UUID) -> Project:
-    project = get_project(project_id)
-    if not project.can_cancel:
-        raise HTTPException(status_code=409, detail="Cannot cancel a DONE project")
-    project.cancel()
-    return get_repository().save_project(project)
+    def cancel_project(self, project_id: UUID) -> Project:
+        project = self.get_project(project_id)
+        if not project.can_cancel:
+            raise ProjectConflict("Cannot cancel a DONE project")
+        project.cancel()
+        return self._repository.save_project(project)
