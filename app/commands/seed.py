@@ -1,13 +1,12 @@
 from pathlib import Path
 
-import app.repository.models  # noqa: F401 — registers models before create_all
 from sqlmodel import SQLModel, create_engine
 
+import app.repository.models  # noqa: F401 — registers models before create_all
 from app.config import settings
 from app.domain.task import Priority
 from app.repository.connection import get_repository, set_repository
 from app.repository.sqlite import SQLiteProjectRepository
-
 
 _PROJECTS = [
     {
@@ -104,7 +103,7 @@ def _seed(repo) -> None:
 def _ensure_db_dir(url: str) -> None:
     prefix = "sqlite:///"
     if url.startswith(prefix):
-        path = Path(url[len(prefix):])
+        path = Path(url[len(prefix) :])
         if path.name:  # not :memory:
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
