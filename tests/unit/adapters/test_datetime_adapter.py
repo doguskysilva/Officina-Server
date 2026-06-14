@@ -43,6 +43,7 @@ def test_to_aware_returns_none_for_none():
 
 def test_to_aware_replaces_existing_timezone():
     from datetime import timedelta, timezone
+
     other_tz = timezone(timedelta(hours=3))
     dt = datetime(2026, 6, 4, 12, 0, tzinfo=other_tz)
 
