@@ -1,6 +1,3 @@
-from datetime import datetime
-from uuid import UUID
-
 import pytest
 
 from app.adapters.project_adapter import (
@@ -13,7 +10,6 @@ from app.domain.project import ProjectStatus
 from app.domain.task import TaskStatus
 from app.ports.project_wire import ProjectCreate
 from tests.factories import ProjectFactory, ProjectModelFactory, TaskFactory, TaskModelFactory
-
 
 # --- from_request ---
 
@@ -42,7 +38,7 @@ def test_to_response_maps_all_fields():
 
 
 def test_to_response_no_tasks_computes_defaults():
-    response = to_response(ProjectFactory())
+    response = to_response(ProjectFactory(waiting=True))
 
     assert response.tasks == []
     assert response.pending_count == 0
@@ -67,7 +63,7 @@ def test_to_response_maps_completed_at():
 
 @pytest.mark.parametrize("n_pending,n_done", [(2, 1), (1, 0), (3, 3)])
 def test_to_response_pending_count(n_pending, n_done):
-    tasks = [TaskFactory() for _ in range(n_pending)]
+    tasks = [TaskFactory(pending=True) for _ in range(n_pending)]
     tasks += [TaskFactory(done=True) for _ in range(n_done)]
     project = ProjectFactory(in_progress=True, tasks=tasks)
 
@@ -85,7 +81,7 @@ def test_to_response_can_finish_when_all_tasks_done():
 
 
 def test_to_response_cannot_finish_with_pending_tasks():
-    tasks = [TaskFactory(done=True), TaskFactory()]
+    tasks = [TaskFactory(done=True), TaskFactory(pending=True)]
     response = to_response(ProjectFactory(in_progress=True, tasks=tasks))
 
     assert response.can_finish is False
@@ -168,7 +164,7 @@ def test_from_model_empty_tasks():
 
 
 def test_from_model_maps_embedded_tasks():
-    task_model = TaskModelFactory()
+    task_model = TaskModelFactory(pending=True)
     project = from_model(ProjectModelFactory(tasks=[task_model]))
 
     assert len(project.tasks) == 1

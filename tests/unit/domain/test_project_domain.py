@@ -6,7 +6,6 @@ from app.domain.project import ProjectStatus
 from app.domain.task import Priority, TaskStatus
 from tests.factories import ProjectFactory, TaskFactory
 
-
 # --- start() ---
 
 
@@ -120,8 +119,8 @@ def test_add_task_appends_to_project():
 
 
 def test_complete_tasks_marks_specified_done():
-    t1 = TaskFactory()
-    t2 = TaskFactory()
+    t1 = TaskFactory(pending=True)
+    t2 = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_tasks({t1.id})
@@ -131,7 +130,7 @@ def test_complete_tasks_marks_specified_done():
 
 
 def test_complete_tasks_sets_completed_at():
-    task = TaskFactory()
+    task = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[task])
 
     project.complete_tasks({task.id})
@@ -140,7 +139,7 @@ def test_complete_tasks_sets_completed_at():
 
 
 def test_complete_tasks_ignores_unknown_ids():
-    task = TaskFactory()
+    task = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[task])
 
     project.complete_tasks({uuid4()})
@@ -152,8 +151,8 @@ def test_complete_tasks_ignores_unknown_ids():
 
 
 def test_cancel_tasks_marks_specified_cancelled():
-    t1 = TaskFactory()
-    t2 = TaskFactory()
+    t1 = TaskFactory(pending=True)
+    t2 = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.cancel_tasks({t1.id})
@@ -166,8 +165,8 @@ def test_cancel_tasks_marks_specified_cancelled():
 
 
 def test_complete_all_tasks_marks_all_pending_done():
-    t1 = TaskFactory()
-    t2 = TaskFactory()
+    t1 = TaskFactory(pending=True)
+    t2 = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_all_tasks()
@@ -178,7 +177,7 @@ def test_complete_all_tasks_marks_all_pending_done():
 
 def test_complete_all_tasks_skips_non_pending():
     t1 = TaskFactory(cancelled=True)
-    t2 = TaskFactory()
+    t2 = TaskFactory(pending=True)
     project = ProjectFactory(in_progress=True, tasks=[t1, t2])
 
     project.complete_all_tasks()
@@ -215,7 +214,7 @@ def test_remove_tasks_ignores_unknown_ids():
 
 @pytest.mark.parametrize("n_pending,n_done", [(2, 1), (1, 0), (3, 3)])
 def test_pending_count(n_pending, n_done):
-    tasks = [TaskFactory() for _ in range(n_pending)]
+    tasks = [TaskFactory(pending=True) for _ in range(n_pending)]
     tasks += [TaskFactory(done=True) for _ in range(n_done)]
     project = ProjectFactory(in_progress=True, tasks=tasks)
 
@@ -231,7 +230,7 @@ def test_can_finish_when_all_tasks_done():
 
 
 def test_cannot_finish_with_pending_tasks():
-    tasks = [TaskFactory(done=True), TaskFactory()]
+    tasks = [TaskFactory(done=True), TaskFactory(pending=True)]
     project = ProjectFactory(in_progress=True, tasks=tasks)
 
     assert project.can_finish is False

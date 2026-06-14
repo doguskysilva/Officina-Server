@@ -2,7 +2,6 @@ from datetime import UTC
 
 from tests.factories import TaskFactory
 
-
 # --- complete() ---
 
 

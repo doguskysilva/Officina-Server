@@ -4,7 +4,6 @@ from app.adapters.task_adapter import from_model, to_model, to_response
 from app.domain.task import Priority, TaskStatus
 from tests.factories import TaskFactory, TaskModelFactory
 
-
 # --- to_response ---
 
 

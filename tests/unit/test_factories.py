@@ -20,6 +20,5 @@ def test_factories_generate_random_data_with_traits():
     assert t1.completed_at is not None
     assert t1.project_id == p1.id
 
-    assert t2.status == TaskStatus.PENDING
     assert t2.priority == Priority.HIGH
     assert t1.id != t2.id

@@ -3,7 +3,6 @@ import pytest
 from tests.factories import ProjectFactory, TaskFactory
 from tests.seeds import seed_project
 
-
 # --- POST /projects/{id}/tasks ---
 
 
@@ -27,7 +26,7 @@ async def test_add_task(client):
 
 @pytest.mark.asyncio
 async def test_add_task_to_non_active_project_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.post(
@@ -43,7 +42,7 @@ async def test_add_task_to_non_active_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_complete_tasks_on_non_active_project_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.patch(
@@ -77,7 +76,7 @@ async def test_complete_tasks(client):
 
 @pytest.mark.asyncio
 async def test_cancel_tasks_on_non_active_project_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.patch(
@@ -110,7 +109,7 @@ async def test_cancel_tasks(client):
 
 @pytest.mark.asyncio
 async def test_complete_all_tasks_on_non_active_project_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
@@ -121,7 +120,7 @@ async def test_complete_all_tasks_on_non_active_project_fails(client):
 @pytest.mark.asyncio
 async def test_complete_all_tasks(client):
     project = ProjectFactory(in_progress=True)
-    project.tasks = TaskFactory.create_batch(3, project_id=project.id)
+    project.tasks = TaskFactory.create_batch(3, project_id=project.id, pending=True)
     seed_project(project)
 
     response = await client.patch(f"/api/projects/{project.id}/tasks/complete-all")
@@ -136,7 +135,7 @@ async def test_complete_all_tasks(client):
 
 @pytest.mark.asyncio
 async def test_remove_tasks_on_non_active_project_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.request(

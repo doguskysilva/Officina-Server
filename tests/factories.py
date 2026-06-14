@@ -1,3 +1,4 @@
+import random
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -15,12 +16,13 @@ class TaskFactory(factory.Factory):
     id = factory.LazyFunction(uuid4)
     project_id = factory.LazyFunction(uuid4)
     title = factory.Faker("sentence", nb_words=4)
-    status = TaskStatus.PENDING
-    priority = factory.Iterator([Priority.LOW, Priority.MEDIUM, Priority.HIGH])
+    status = factory.LazyFunction(lambda: random.choice(list(TaskStatus)))
+    priority = factory.LazyFunction(lambda: random.choice(list(Priority)))
     created_at = factory.LazyFunction(lambda: datetime.now(UTC))
     completed_at = None
 
     class Params:
+        pending = factory.Trait(status=TaskStatus.PENDING)
         done = factory.Trait(
             status=TaskStatus.DONE,
             completed_at=factory.LazyFunction(lambda: datetime.now(UTC)),
@@ -35,12 +37,13 @@ class ProjectFactory(factory.Factory):
 
     id = factory.LazyFunction(uuid4)
     name = factory.Faker("company")
-    status = ProjectStatus.WAITING
+    status = factory.LazyFunction(lambda: random.choice(list(ProjectStatus)))
     created_at = factory.LazyFunction(lambda: datetime.now(UTC))
     completed_at = None
     tasks = factory.LazyFunction(list)
 
     class Params:
+        waiting = factory.Trait(status=ProjectStatus.WAITING)
         in_progress = factory.Trait(status=ProjectStatus.IN_PROGRESS)
         done = factory.Trait(
             status=ProjectStatus.DONE,
@@ -56,12 +59,13 @@ class TaskModelFactory(factory.Factory):
     id = factory.LazyFunction(uuid4)
     project_id = factory.LazyFunction(uuid4)
     title = factory.Faker("sentence", nb_words=4)
-    status = "PENDING"
-    priority = "MEDIUM"
+    status = factory.LazyFunction(lambda: random.choice([s.value for s in TaskStatus]))
+    priority = factory.LazyFunction(lambda: random.choice([p.value for p in Priority]))
     created_at = factory.LazyFunction(datetime.now)  # naive — no tz, mirrors SQLite storage
     completed_at = None
 
     class Params:
+        pending = factory.Trait(status="PENDING")
         done = factory.Trait(
             status="DONE",
             completed_at=factory.LazyFunction(datetime.now),
@@ -75,7 +79,7 @@ class ProjectModelFactory(factory.Factory):
 
     id = factory.LazyFunction(uuid4)
     name = factory.Faker("company")
-    status = "WAITING"
+    status = factory.LazyFunction(lambda: random.choice([s.value for s in ProjectStatus]))
     created_at = factory.LazyFunction(datetime.now)  # naive — no tz, mirrors SQLite storage
     completed_at = None
 
@@ -84,6 +88,7 @@ class ProjectModelFactory(factory.Factory):
         obj.tasks = extracted if extracted is not None else []
 
     class Params:
+        waiting = factory.Trait(status="WAITING")
         done = factory.Trait(
             status="DONE",
             completed_at=factory.LazyFunction(datetime.now),

@@ -51,7 +51,7 @@ async def test_get_project_not_found(client):
 
 @pytest.mark.asyncio
 async def test_delete_project(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     delete_response = await client.delete(f"/api/projects/{project.id}")
@@ -73,7 +73,7 @@ async def test_delete_in_progress_project_fails(client):
 
 @pytest.mark.asyncio
 async def test_start_project(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/start")
@@ -96,7 +96,7 @@ async def test_start_already_started_fails(client):
 
 @pytest.mark.asyncio
 async def test_cancel_project(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/cancel")
@@ -108,7 +108,7 @@ async def test_cancel_project(client):
 
 @pytest.mark.asyncio
 async def test_finish_project_not_in_progress_fails(client):
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
     seed_project(project)
 
     response = await client.post(f"/api/projects/{project.id}/finish")
