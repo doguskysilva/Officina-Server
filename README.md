@@ -29,9 +29,10 @@ the edge, while application services receive their persistence dependency throug
 `ProjectRepository` protocol:
 
 ```
-routers  →  services  →  repository protocol
-routers  →  adapters  →  ports / wire schemas
-repository implementation  →  adapters  →  domain
+domain  ←  repository
+domain  ←  adapters  ←  routers
+domain  ←  services  ←  routers
+ports   ←  adapters  ←  routers
 ```
 
 | Layer | Path | Responsibility |
