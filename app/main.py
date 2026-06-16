@@ -9,6 +9,7 @@ from app.config import settings
 from app.repository.connection import get_repository, set_repository
 from app.repository.sqlite import SQLiteProjectRepository
 from app.routers.projects import router as projects_router
+from app.services.exceptions import ProjectConflict, ProjectNotFound
 
 
 @asynccontextmanager
@@ -23,6 +24,16 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="OfficinaServer", lifespan=lifespan)
 
 app.include_router(projects_router, prefix="/api")
+
+
+@app.exception_handler(ProjectNotFound)
+async def project_not_found_handler(_, exc: ProjectNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(ProjectConflict)
+async def project_conflict_handler(_, exc: ProjectConflict) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
 @app.get("/health")
