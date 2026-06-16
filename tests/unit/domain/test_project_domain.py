@@ -18,6 +18,7 @@ def test_create_builds_waiting_project():
     assert project.tasks == []
     assert project.created_at.tzinfo is not None
 
+
 # --- start() ---
 
 
