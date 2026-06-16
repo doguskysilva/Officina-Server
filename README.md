@@ -25,23 +25,23 @@ Officina Server exposes a JSON HTTP API that lets you:
 ## Architecture
 
 The project follows a small **hexagonal (ports and adapters)** style. HTTP concerns stay at
-the edge, while application services receive their persistence dependency through the
-`ProjectRepository` protocol:
+the edge, application services receive their persistence dependency through the
+`ProjectRepository` protocol, and domain entities protect their own lifecycle invariants:
 
 ```
-domain  ←  repository
-domain  ←  adapters  ←  routers
-domain  ←  services  ←  routers
-ports   ←  adapters  ←  routers
+routers  →  services  →  repository protocol
+routers  →  adapters  →  ports / wire schemas
+services  →  domain  →  domain exceptions
+repository implementation  →  adapters  →  domain
 ```
 
 | Layer | Path | Responsibility |
 |---|---|---|
-| `domain` | `app/domain/` | Core business logic — pure Python dataclasses, no framework imports |
+| `domain` | `app/domain/` | Core business logic — pure Python dataclasses, lifecycle rules, and project creation |
 | `ports` | `app/ports/` | Pydantic wire schemas (request/response shapes) |
 | `adapters` | `app/adapters/` | Translate between domain entities and wire schemas / ORM models |
 | `repository` | `app/repository/` | Repository protocol plus SQLite persistence via SQLModel |
-| `services` | `app/services/` | Orchestration — fetch, guard, call domain method, save; raises application exceptions instead of HTTP exceptions |
+| `services` | `app/services/` | Orchestration — fetch, call domain method, translate domain conflicts, save; raises application exceptions instead of HTTP exceptions |
 | `routers` | `app/routers/` | HTTP boundary — route definitions, dependency wiring, and response shaping |
 
 ---

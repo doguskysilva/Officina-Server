@@ -2,15 +2,27 @@ from uuid import uuid4
 
 import pytest
 
-from app.domain.project import ProjectStatus
+from app.domain.exceptions import InvalidProjectOperation
+from app.domain.project import Project, ProjectStatus
 from app.domain.task import Priority, TaskStatus
 from tests.factories import ProjectFactory, TaskFactory
+
+# --- create() ---
+
+
+def test_create_builds_waiting_project():
+    project = Project.create("New Project")
+
+    assert project.name == "New Project"
+    assert project.status == ProjectStatus.WAITING
+    assert project.tasks == []
+    assert project.created_at.tzinfo is not None
 
 # --- start() ---
 
 
 def test_start_sets_status_to_in_progress():
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
 
     project.start()
 
@@ -18,7 +30,7 @@ def test_start_sets_status_to_in_progress():
 
 
 def test_start_makes_project_active():
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
 
     project.start()
 
@@ -26,18 +38,25 @@ def test_start_makes_project_active():
 
 
 def test_start_disables_can_start():
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
 
     project.start()
 
     assert project.can_start is False
 
 
+def test_start_requires_waiting_project():
+    project = ProjectFactory(done=True)
+
+    with pytest.raises(InvalidProjectOperation):
+        project.start()
+
+
 # --- cancel() ---
 
 
 def test_cancel_sets_status_to_cancelled():
-    project = ProjectFactory()
+    project = ProjectFactory(waiting=True)
 
     project.cancel()
 
@@ -53,11 +72,19 @@ def test_cancel_from_in_progress():
     assert project.is_active is False
 
 
+def test_cancel_done_project_raises():
+    project = ProjectFactory(done=True)
+
+    with pytest.raises(InvalidProjectOperation):
+        project.cancel()
+
+
 # --- complete() ---
 
 
 def test_complete_sets_status_to_done():
     project = ProjectFactory(in_progress=True)
+    project.tasks = [TaskFactory(done=True, project_id=project.id)]
 
     project.complete()
 
@@ -66,6 +93,7 @@ def test_complete_sets_status_to_done():
 
 def test_complete_sets_completed_at():
     project = ProjectFactory(in_progress=True)
+    project.tasks = [TaskFactory(done=True, project_id=project.id)]
 
     project.complete()
 
@@ -75,6 +103,7 @@ def test_complete_sets_completed_at():
 
 def test_complete_completed_at_is_after_created_at():
     project = ProjectFactory(in_progress=True)
+    project.tasks = [TaskFactory(done=True, project_id=project.id)]
 
     project.complete()
 
@@ -90,6 +119,20 @@ def test_complete_updates_can_finish_derived_state():
     assert project.status == ProjectStatus.DONE
     assert not project.is_active
     assert not project.can_cancel
+
+
+def test_complete_requires_active_project():
+    project = ProjectFactory(waiting=True, tasks=[TaskFactory(done=True)])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.complete()
+
+
+def test_complete_requires_finishable_project():
+    project = ProjectFactory(in_progress=True, tasks=[TaskFactory(pending=True)])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.complete()
 
 
 # --- add_task() ---
@@ -113,6 +156,13 @@ def test_add_task_appends_to_project():
     project.add_task("Task B", Priority.MEDIUM)
 
     assert len(project.tasks) == 2
+
+
+def test_add_task_requires_active_project():
+    project = ProjectFactory(waiting=True)
+
+    with pytest.raises(InvalidProjectOperation):
+        project.add_task("Task", Priority.LOW)
 
 
 # --- complete_tasks() ---
@@ -147,6 +197,14 @@ def test_complete_tasks_ignores_unknown_ids():
     assert task.status == TaskStatus.PENDING
 
 
+def test_complete_tasks_requires_active_project():
+    task = TaskFactory(pending=True)
+    project = ProjectFactory(waiting=True, tasks=[task])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.complete_tasks({task.id})
+
+
 # --- cancel_tasks() ---
 
 
@@ -159,6 +217,14 @@ def test_cancel_tasks_marks_specified_cancelled():
 
     assert t1.status == TaskStatus.CANCELLED
     assert t2.status == TaskStatus.PENDING
+
+
+def test_cancel_tasks_requires_active_project():
+    task = TaskFactory(pending=True)
+    project = ProjectFactory(waiting=True, tasks=[task])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.cancel_tasks({task.id})
 
 
 # --- complete_all_tasks() ---
@@ -186,6 +252,13 @@ def test_complete_all_tasks_skips_non_pending():
     assert t2.status == TaskStatus.DONE
 
 
+def test_complete_all_tasks_requires_active_project():
+    project = ProjectFactory(waiting=True, tasks=[TaskFactory(pending=True)])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.complete_all_tasks()
+
+
 # --- remove_tasks() ---
 
 
@@ -207,6 +280,30 @@ def test_remove_tasks_ignores_unknown_ids():
     project.remove_tasks({uuid4()})
 
     assert len(project.tasks) == 1
+
+
+def test_remove_tasks_requires_active_project():
+    task = TaskFactory()
+    project = ProjectFactory(waiting=True, tasks=[task])
+
+    with pytest.raises(InvalidProjectOperation):
+        project.remove_tasks({task.id})
+
+
+# --- deletion guard ---
+
+
+def test_ensure_can_be_deleted_allows_waiting_project():
+    project = ProjectFactory(waiting=True)
+
+    project.ensure_can_be_deleted()
+
+
+def test_ensure_can_be_deleted_rejects_in_progress_project():
+    project = ProjectFactory(in_progress=True)
+
+    with pytest.raises(InvalidProjectOperation):
+        project.ensure_can_be_deleted()
 
 
 # --- pending_count / can_finish / is_active ---

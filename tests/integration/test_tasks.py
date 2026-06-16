@@ -56,7 +56,7 @@ async def test_complete_tasks_on_non_active_project_fails(client):
 @pytest.mark.asyncio
 async def test_complete_tasks(client):
     project = ProjectFactory(in_progress=True)
-    task = TaskFactory(project_id=project.id)
+    task = TaskFactory(pending=True, project_id=project.id)
     project.tasks = [task]
     seed_project(project)
 
@@ -90,7 +90,7 @@ async def test_cancel_tasks_on_non_active_project_fails(client):
 @pytest.mark.asyncio
 async def test_cancel_tasks(client):
     project = ProjectFactory(in_progress=True)
-    task = TaskFactory(project_id=project.id)
+    task = TaskFactory(pending=True, project_id=project.id)
     project.tasks = [task]
     seed_project(project)
 

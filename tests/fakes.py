@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from app.domain.project import Project, ProjectStatus
+from app.domain.project import Project
+from app.repository.base import ProjectSort
 
 
 class FakeRepository:
@@ -11,26 +11,16 @@ class FakeRepository:
     def ping(self) -> bool:
         return True
 
-    def list_projects(self, sort: str = "name_asc") -> list[Project]:
+    def list_projects(self, sort: ProjectSort = ProjectSort.NAME_ASC) -> list[Project]:
         projects = list(self._store.values())
-        if sort == "newest":
+        if sort == ProjectSort.NEWEST:
             return sorted(projects, key=lambda p: p.created_at, reverse=True)
-        if sort == "oldest":
+        if sort == ProjectSort.OLDEST:
             return sorted(projects, key=lambda p: p.created_at)
         return sorted(projects, key=lambda p: p.name)
 
     def get_project(self, project_id: UUID) -> Project | None:
         return self._store.get(project_id)
-
-    def create_project(self, name: str) -> Project:
-        project = Project(
-            id=uuid4(),
-            name=name,
-            status=ProjectStatus.WAITING,
-            created_at=datetime.now(UTC),
-        )
-        self._store[project.id] = project
-        return project
 
     def save_project(self, project: Project) -> Project:
         self._store[project.id] = project
