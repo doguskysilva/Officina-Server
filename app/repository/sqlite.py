@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import Engine
 from sqlmodel import Session, delete, select, text
 
 from app.adapters import project_adapter, task_adapter
-from app.domain.project import Project, ProjectStatus
+from app.domain.project import Project
+from app.repository.base import ProjectSort
 from app.repository.models import ProjectModel, TaskModel
 
 
@@ -21,13 +21,13 @@ class SQLiteProjectRepository:
         except Exception:
             return False
 
-    def list_projects(self, sort: str = "name_asc") -> list[Project]:
+    def list_projects(self, sort: ProjectSort = ProjectSort.NAME_ASC) -> list[Project]:
         with Session(self._engine) as session:
             rows = session.exec(select(ProjectModel)).all()
             projects = [project_adapter.from_model(r) for r in rows]
-        if sort == "newest":
+        if sort == ProjectSort.NEWEST:
             return sorted(projects, key=lambda p: p.created_at, reverse=True)
-        if sort == "oldest":
+        if sort == ProjectSort.OLDEST:
             return sorted(projects, key=lambda p: p.created_at)
         return sorted(projects, key=lambda p: p.name)
 
@@ -37,18 +37,6 @@ class SQLiteProjectRepository:
             if row is None:
                 return None
             return project_adapter.from_model(row)
-
-    def create_project(self, name: str) -> Project:
-        project = Project(
-            id=uuid4(),
-            name=name,
-            status=ProjectStatus.WAITING,
-            created_at=datetime.now(UTC),
-        )
-        with Session(self._engine) as session:
-            session.add(project_adapter.to_model(project))
-            session.commit()
-        return project
 
     def save_project(self, project: Project) -> Project:
         with Session(self._engine) as session:

@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, create_engine
 
 import app.repository.models  # noqa: F401 — registers models before create_all
 from app.config import settings
+from app.domain.project import Project
 from app.domain.task import Priority
 from app.repository.connection import get_repository, set_repository
 from app.repository.sqlite import SQLiteProjectRepository
@@ -68,7 +69,7 @@ _PROJECTS = [
 
 def _seed(repo) -> None:
     for spec in _PROJECTS:
-        project = repo.create_project(spec["name"])
+        project = Project.create(spec["name"])
 
         status = spec.get("status")
 

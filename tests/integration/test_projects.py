@@ -184,3 +184,10 @@ async def test_list_projects_sorted_oldest(client):
 
     assert response.status_code == 200
     assert data[0]["name"] == "First"
+
+
+@pytest.mark.asyncio
+async def test_list_projects_invalid_sort_fails_validation(client):
+    response = await client.get("/api/projects?sort=unknown")
+
+    assert response.status_code == 422

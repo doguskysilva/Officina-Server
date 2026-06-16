@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from app.adapters import project_adapter, task_adapter
 from app.ports.project_wire import ProjectCreate, ProjectResponse
 from app.ports.task_wire import TaskCreate, TaskIdsRequest, TaskResponse
-from app.repository.base import ProjectRepository
+from app.repository.base import ProjectRepository, ProjectSort
 from app.repository.connection import get_repository
 from app.services.project_service import ProjectService
 from app.services.task_service import TaskService
@@ -27,7 +27,7 @@ def get_task_service(repository: ProjectRepositoryDep) -> TaskService:
 @router.get("", response_model=list[ProjectResponse])
 def list_projects(
     project_service: Annotated[ProjectService, Depends(get_project_service)],
-    sort: str = "name_asc",
+    sort: ProjectSort = ProjectSort.NAME_ASC,
 ) -> list[ProjectResponse]:
     return [project_adapter.to_response(p) for p in project_service.list_projects(sort)]
 

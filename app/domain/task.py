@@ -3,6 +3,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
+from app.domain.exceptions import InvalidTaskOperation
+
 
 class TaskStatus(StrEnum):
     PENDING = "PENDING"
@@ -27,8 +29,12 @@ class Task:
     completed_at: datetime | None = None
 
     def complete(self) -> None:
+        if self.status != TaskStatus.PENDING:
+            raise InvalidTaskOperation("Task must be PENDING to complete")
         self.status = TaskStatus.DONE
         self.completed_at = datetime.now(UTC)
 
     def cancel(self) -> None:
+        if self.status != TaskStatus.PENDING:
+            raise InvalidTaskOperation("Task must be PENDING to cancel")
         self.status = TaskStatus.CANCELLED
