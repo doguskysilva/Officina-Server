@@ -21,3 +21,14 @@ class ProjectResponse(BaseModel):
     pending_count: int
     can_finish: bool
     is_active: bool
+
+
+class ProjectListResponse(BaseModel):
+    id: UUID
+    name: str
+    status: ProjectStatus
+    created_at: datetime
+    completed_at: datetime | None = None
+    pending_count: int
+    can_finish: bool
+    is_active: bool

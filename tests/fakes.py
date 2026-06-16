@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.domain.project import Project
+from app.domain.project import Project, ProjectSummary
 from app.repository.base import ProjectSort
 
 
@@ -11,13 +11,34 @@ class FakeRepository:
     def ping(self) -> bool:
         return True
 
-    def list_projects(self, sort: ProjectSort = ProjectSort.NAME_ASC) -> list[Project]:
+    def list_projects(
+        self,
+        sort: ProjectSort = ProjectSort.NAME_ASC,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[ProjectSummary]:
         projects = list(self._store.values())
         if sort == ProjectSort.NEWEST:
-            return sorted(projects, key=lambda p: p.created_at, reverse=True)
-        if sort == ProjectSort.OLDEST:
-            return sorted(projects, key=lambda p: p.created_at)
-        return sorted(projects, key=lambda p: p.name)
+            ordered = sorted(projects, key=lambda p: p.created_at, reverse=True)
+        elif sort == ProjectSort.OLDEST:
+            ordered = sorted(projects, key=lambda p: p.created_at)
+        else:
+            ordered = sorted(projects, key=lambda p: p.name)
+        page = ordered[offset : offset + limit]
+        return [
+            ProjectSummary(
+                id=project.id,
+                name=project.name,
+                status=project.status,
+                created_at=project.created_at,
+                completed_at=project.completed_at,
+                pending_count=project.pending_count,
+                can_finish=project.can_finish,
+                is_active=project.is_active,
+            )
+            for project in page
+        ]
 
     def get_project(self, project_id: UUID) -> Project | None:
         return self._store.get(project_id)

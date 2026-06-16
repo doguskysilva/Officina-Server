@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from app.domain.exceptions import InvalidProjectOperation
-from app.domain.project import Project
+from app.domain.project import Project, ProjectSummary
 from app.repository.base import ProjectRepository, ProjectSort
 from app.services.exceptions import ProjectConflict, ProjectNotFound
 
@@ -10,8 +10,14 @@ class ProjectService:
     def __init__(self, repository: ProjectRepository) -> None:
         self._repository = repository
 
-    def list_projects(self, sort: ProjectSort = ProjectSort.NAME_ASC) -> list[Project]:
-        return self._repository.list_projects(sort)
+    def list_projects(
+        self,
+        sort: ProjectSort = ProjectSort.NAME_ASC,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[ProjectSummary]:
+        return self._repository.list_projects(sort, offset=offset, limit=limit)
 
     def get_project(self, project_id: UUID) -> Project:
         project = self._repository.get_project(project_id)

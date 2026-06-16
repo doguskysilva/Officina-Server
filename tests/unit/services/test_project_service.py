@@ -138,3 +138,17 @@ def test_cancel_done_project_raises_conflict():
 
     with pytest.raises(ProjectConflict):
         service.cancel_project(project.id)
+
+
+def test_list_projects_applies_offset_and_limit():
+    service = make_service(
+        [
+            ProjectFactory(name="Alpha"),
+            ProjectFactory(name="Beta"),
+            ProjectFactory(name="Gamma"),
+        ]
+    )
+
+    result = service.list_projects(offset=1, limit=1)
+
+    assert [project.name for project in result] == ["Beta"]

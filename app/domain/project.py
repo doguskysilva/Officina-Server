@@ -116,3 +116,15 @@ class Project:
     def _ensure_active(self, message: str) -> None:
         if not self.is_active:
             raise InvalidProjectOperation(message)
+
+
+@dataclass(frozen=True)
+class ProjectSummary:
+    id: UUID
+    name: str
+    status: ProjectStatus
+    created_at: datetime
+    completed_at: datetime | None
+    pending_count: int
+    can_finish: bool
+    is_active: bool
