@@ -162,6 +162,7 @@ async def test_list_projects_sorted_by_name(client):
 
     assert response.status_code == 200
     assert [p["name"] for p in data] == ["Alpha", "Zebra"]
+    assert "tasks" not in data[0]
 
 
 @pytest.mark.asyncio
@@ -189,5 +190,27 @@ async def test_list_projects_sorted_oldest(client):
 @pytest.mark.asyncio
 async def test_list_projects_invalid_sort_fails_validation(client):
     response = await client.get("/api/projects?sort=unknown")
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_projects_applies_pagination(client):
+    seed_projects(
+        ProjectFactory(name="Alpha"),
+        ProjectFactory(name="Beta"),
+        ProjectFactory(name="Gamma"),
+    )
+
+    response = await client.get("/api/projects?sort=name_asc&offset=1&limit=1")
+    data = response.json()
+
+    assert response.status_code == 200
+    assert [p["name"] for p in data] == ["Beta"]
+
+
+@pytest.mark.asyncio
+async def test_list_projects_invalid_limit_fails_validation(client):
+    response = await client.get("/api/projects?limit=0")
 
     assert response.status_code == 422

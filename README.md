@@ -157,7 +157,7 @@ Base URL: `/api` — no version prefix.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/projects` | List all projects. Optional `?sort=name_asc\|newest\|oldest` |
+| `GET` | `/api/projects` | List projects (summary payload). Optional `?sort=name_asc\|newest\|oldest&offset=0&limit=50` |
 | `POST` | `/api/projects` | Create a project → `201` |
 | `GET` | `/api/projects/{id}` | Get a single project |
 | `DELETE` | `/api/projects/{id}` | Delete a project → `204` (blocked if `IN_PROGRESS`) |
@@ -201,6 +201,20 @@ POST /api/projects
   "created_at": "2024-01-01T00:00:00Z",
   "completed_at": null,
   "tasks": [],
+  "pending_count": 0,
+  "can_finish": false,
+  "is_active": false
+}
+```
+
+**Project list item response (`GET /api/projects`):**
+```json
+{
+  "id": "uuid",
+  "name": "My Project",
+  "status": "WAITING",
+  "created_at": "2024-01-01T00:00:00Z",
+  "completed_at": null,
   "pending_count": 0,
   "can_finish": false,
   "is_active": false
@@ -275,7 +289,7 @@ app/
 │   ├── project.py      # Project dataclass + ProjectStatus enum
 │   └── task.py         # Task dataclass + TaskStatus + Priority enums
 ├── ports/
-│   ├── project_wire.py # ProjectCreate (request) + ProjectResponse (response)
+│   ├── project_wire.py # ProjectCreate + ProjectResponse + ProjectListResponse
 │   └── task_wire.py    # TaskCreate, TaskIdsRequest, TaskResponse
 ├── adapters/
 │   ├── datetime_adapter.py   # to_naive() / to_aware() — SQLite ↔ UTC-aware datetimes

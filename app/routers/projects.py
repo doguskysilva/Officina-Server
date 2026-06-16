@@ -1,10 +1,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.adapters import project_adapter, task_adapter
-from app.ports.project_wire import ProjectCreate, ProjectResponse
+from app.ports.project_wire import ProjectCreate, ProjectListResponse, ProjectResponse
 from app.ports.task_wire import TaskCreate, TaskIdsRequest, TaskResponse
 from app.repository.base import ProjectRepository, ProjectSort
 from app.repository.connection import get_repository
@@ -24,12 +24,17 @@ def get_task_service(repository: ProjectRepositoryDep) -> TaskService:
     return TaskService(repository)
 
 
-@router.get("", response_model=list[ProjectResponse])
+@router.get("", response_model=list[ProjectListResponse])
 def list_projects(
     project_service: Annotated[ProjectService, Depends(get_project_service)],
     sort: ProjectSort = ProjectSort.NAME_ASC,
-) -> list[ProjectResponse]:
-    return [project_adapter.to_response(p) for p in project_service.list_projects(sort)]
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+) -> list[ProjectListResponse]:
+    return [
+        project_adapter.to_list_response(p)
+        for p in project_service.list_projects(sort, offset=offset, limit=limit)
+    ]
 
 
 @router.post("", response_model=ProjectResponse, status_code=201)

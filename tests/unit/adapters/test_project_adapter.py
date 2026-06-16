@@ -3,10 +3,11 @@ import pytest
 from app.adapters.project_adapter import (
     from_model,
     from_request,
+    to_list_response,
     to_model,
     to_response,
 )
-from app.domain.project import ProjectStatus
+from app.domain.project import ProjectStatus, ProjectSummary
 from app.domain.task import TaskStatus
 from app.ports.project_wire import ProjectCreate
 from tests.factories import ProjectFactory, ProjectModelFactory, TaskFactory, TaskModelFactory
@@ -85,6 +86,29 @@ def test_to_response_cannot_finish_with_pending_tasks():
     response = to_response(ProjectFactory(in_progress=True, tasks=tasks))
 
     assert response.can_finish is False
+
+
+def test_to_list_response_maps_all_fields():
+    project = ProjectFactory()
+    summary = ProjectSummary(
+        id=project.id,
+        name="API Rewrite",
+        status=ProjectStatus.IN_PROGRESS,
+        created_at=project.created_at,
+        completed_at=None,
+        pending_count=3,
+        can_finish=False,
+        is_active=True,
+    )
+
+    response = to_list_response(summary)
+
+    assert response.id == summary.id
+    assert response.name == summary.name
+    assert response.status == summary.status
+    assert response.pending_count == summary.pending_count
+    assert response.can_finish == summary.can_finish
+    assert response.is_active == summary.is_active
 
 
 # --- to_model ---
